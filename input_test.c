@@ -4,9 +4,9 @@
 #include <ctype.h>
 #include <float.h>
 #define EMPTY SCHAR_MIN
+#define EMPTY_NUM 1
 
-
-
+/*determine what function has  been  inserted*/
 int what_func(const char *func, int *num_comp , int* num_args){
 	int function = no_function;	
 	
@@ -14,40 +14,40 @@ int what_func(const char *func, int *num_comp , int* num_args){
 		*num_comp = 1;
 		function = print;
 		}
-	if(!strcmp(func, "abs_comp")){
+	else if(!strcmp(func, "abs_comp")){
 		*num_comp = 1;
 		function = abs_c;
 		}
-	if(!strcmp(func, "add_comp")){
+	else if(!strcmp(func, "add_comp")){
 		*num_comp = 2;
 		function = add;
 		}
-	if(!strcmp(func, "sub_comp")){
+	else if(!strcmp(func, "sub_comp")){
 		*num_comp = 2;
 		function = sub;
 		}
-	if(!strcmp(func, "mult_comp_comp")){
+	else if(!strcmp(func, "mult_comp_comp")){
 		*num_comp = 2;
 		function = mult_comp;
 		}
-	if(!strcmp(func, "mult_comp_real")){
+	else if(!strcmp(func, "mult_comp_real")){
 		*num_comp = 1;
 		*num_args = 1;
 		function = mult_real;
 		}
-	if(!strcmp(func, "mult_comp_img")){
+	else if(!strcmp(func, "mult_comp_img")){
 		*num_comp = 1;
 		*num_args = 1;
 		function = mult_img;
 		}
-	if(!strcmp(func, "read_comp")){
+	else if(!strcmp(func, "read_comp")){
 		*num_comp = 1;
 		*num_args = 2;
 		function = read;
 		}
-	if(!strcmp(func, "stop"))
+	else if(!strcmp(func, "stop"))
 		function = stp;
-	if( func[0] == '\0')
+	else if( func[0] == '\0')
 		function = EMPTY;	
 		
 	return function;
@@ -73,11 +73,17 @@ char get_var(char * input ){
 	}
 	return var ;
 }
+
+
 /*check if the variable is valid ,empty ,or a comma */
-int valid_var(char var, function **func){
+int valid_var(char var, function **func , int *err){
 	int validity = FALSE;
-	if(var>=0 && var<6)
+	
+	*err = TRUE;
+	if(var>=0 && var<6){
 		validity =  TRUE;
+		*err = FALSE;
+		}
 	else
 		if (var == ',')
 			(*func)->err_type = illegal_comma; /* illegal comma*/
@@ -91,11 +97,11 @@ int valid_var(char var, function **func){
 
 
 /*check if the string is a valid number, and empty number*/	
-int valid_num(const char * str){
+int valid_num(const char * str , int * err ,function **func){
 	int point = FALSE;
 	int is_number = FALSE;
 	int i = 0;
-	char err = '\0';
+	char extra = '\0';
 	
 	while(isspace(str[i]))
 		i++;
@@ -107,17 +113,26 @@ int valid_num(const char * str){
 			point = TRUE;
 		i++;
 		}
-	err = str[i];	
-	if(!isspace(err) && err !='\0')
+	extra = str[i];	
+	if(!isspace(extra) && extra !='\0'){
+		*err = TRUE;
+		(*func)->err_type = not_number;
 		return FALSE;
-	return is_number+1;
-	
-	
-	
-	
+		}
+	return is_number + EMPTY_NUM;	
 }
 
+/*check if number parameter isempty*/
+void not_empty (int param , function **func , int *err){
+	if (param == EMPTY_NUM){
+		(*func)->err_type = miss_param;
+		*err = TRUE;
+		}
+	return;
+}
+		
 
+/* check  there is extra text after the command*/
 int extra_text(int err,const char *str , int num_comma , function ** func ,const char* token){
 	int flag = FALSE;
 	int i =0;
@@ -207,56 +222,42 @@ int check_param(int err  , int left_param ,function ** func){
 		
 	
 	return flag;				
-}		
+}
 
+		
 /*parsing the input after getting the function, number of complex variables and number of numbers.  */
 
 function * parsing_vars(char * input, int index ,int num_comp, int num_args){
-	int num_of_commas = num_comp + num_args; 			 /*expected number of commas +1*/
-	function func;
-	function *pfunc = &func;
-	int i = 0;
-	int err = FALSE;
-	char comma[] = ",";
-	char *token;
+	int num_of_commas = num_comp + num_args , i = 0 , err = FALSE; 			 /*expected number of commas +1*/
+	char comma[] = ",", *token;
+	function func , *pfunc = &func;
 	
 	if(!num_of_commas) 							/*stop cammand*/
-		err = extra_text(err, input,num_of_commas,&pfunc,NULL);	
+		err = extra_text(err, input, num_of_commas ,&pfunc,NULL);	
 	else{
 		pfunc->err_buf = token = strtok((input+index),comma);
 		while(num_comp && token && !err){
 			pfunc->err_buf = token;
 			pfunc->var[i] =  get_var(token);
-			if(valid_var(pfunc->var[i] ,&pfunc )){
+			if(valid_var(pfunc->var[i++] ,&pfunc , &err )){
 				num_comp --;
 				err = check_commas(token,num_comp,num_args,&pfunc);
 				token = strtok(NULL, comma);
 				num_of_commas--;
-				i++;
 			}	
-			else
-				err = TRUE;
 		}
 		i=0;
 		while(num_args && token && !err){
-			int empty_num;
+			int parameter;
 			pfunc->err_buf = token;
-			if(empty_num = valid_num(token)){
-				pfunc->num[i] =  atof(token);
+			if((parameter = valid_num(token , &err ,&pfunc ))){
+				pfunc->num[i++] =  atof(token);
 				num_args --;
 				err = check_commas(token,num_comp,num_args,&pfunc);	
 				token = strtok(NULL, comma);
 				num_of_commas--;
-				i++;
 			}
-			else{
-				err = TRUE;
-				pfunc-> err_type = not_number; /*undefinrd namber*/
-			}	
-			if(empty_num == 1){
-				pfunc->err_type = miss_param;
-				err = TRUE;
-			}
+			not_empty (parameter ,&pfunc , &err);
 		}	
 		err = check_param(err, num_comp + num_args ,&pfunc);
 		err = extra_text(err, pfunc->err_buf,num_of_commas,&pfunc,token);
@@ -275,38 +276,33 @@ void parsing(char input[], function **func){
 	int num_comp = 0,num_args = 0;
 	int comma = FALSE;
 	
-
 	while(isspace( input[i]))
 		i++;
 	while(!isspace(input[i]) && j < MAX_FUN_SIZE){
 		if(input[i] == ',')
-			comma =TRUE;
+			comma =TRUE;           /*there is a comma after cammand name*/
 		function[j++] = input[i++];
-		}	
-	
+		}		
 	switch( temp_func_type = what_func(function, &num_comp, &num_args )){
-		case no_function:{if(comma)
-				(*func)->err_type = illegal_comma;
-			 else		
-				(*func)->err_type = undefined_command;
-			 break;
-			}
+		case no_function:
+				 if(comma)
+					(*func)->err_type = illegal_comma;
+				 else		
+					(*func)->err_type = undefined_command;
+				 break;
 		case stp:{
-			*func = parsing_vars(input, i , num_comp, num_comp);
-			if((*func)->err_buf)
-				(*func)->err_type = text_after;
-			break;
-			}
+				*func = parsing_vars(input, i , num_comp, num_comp);
+				if((*func)->err_buf)
+					(*func)->err_type = text_after;
+				break;
+				}
 		case EMPTY :
-			(*func)->err_type = no_input;
-			break; 
+				(*func)->err_type = no_input;
+				break; 
 		default:
-			*func = parsing_vars(input, i , num_comp, num_args);			
+				*func = parsing_vars(input, i , num_comp, num_args);			
 	}
-	
 	(*func)->fun_type = temp_func_type;
-
 	return;			
-
 }
 

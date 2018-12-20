@@ -16,7 +16,7 @@ typedef struct complex{
 	
 	
 	
-typedef struct func{
+typedef struct func{  /* represents function with optional 2 variables , 2 numbers , and errors*/
 	int fun_type;
 	char var[2] ;
 	float num[2];

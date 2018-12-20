@@ -43,6 +43,7 @@ void err(int err){
 	}
 }
 
+/*executing the right function*/
 void exe(function *func, complex **arr){
 	int var1 = (int)func->var[0];
 	int var2 = (int)func->var[1];
@@ -85,18 +86,28 @@ void exe(function *func, complex **arr){
 /*initializint array of variables with value  of 0*/
 void initiate_vars(complex ***arr){
 	int i;
-
+	int flag = FALSE;
+	
 	*arr = (complex**)malloc(NUM_OF_VARS*sizeof(complex*));
+	if(*arr == NULL)
+		flag = TRUE;
 		
-	for(i=0; i< NUM_OF_VARS; i++){
+	for(i=0; i< NUM_OF_VARS &&(!flag); i++){
 		(*arr)[i] = (complex*)malloc(sizeof(complex));
-		
+		if((*arr)[i] == NULL)
+			flag = TRUE;
+		else
 		read_comp((*arr)[i],0,0);
 		}
-
+	if(flag){
+		printf("allocation failed , stack overflow");
+		free_comp(arr);
+		exit(0);
+	}
 	return ;
 
 }
+
 void free_comp(complex ***arr){
 	int i;
 	
@@ -123,7 +134,7 @@ int main(){
 	function func1;
 	function *func = &func1;
 	
-
+	printf("\nplease insert commands, insert stop to exit\n");
 	initiate_vars(&arr);
 	while(TRUE){
 		fgets(input,MAX_INPUT_SIZE,stdin); 
